@@ -2,24 +2,31 @@ package com.devmasterteam.photicker.views;
 
 
 import android.graphics.BitmapFactory;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnTouchListener;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 
 import com.devmasterteam.photicker.R;
 import com.devmasterteam.photicker.utils.ImageUtil;
+import com.devmasterteam.photicker.utils.LongEventType;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener, View.OnTouchListener {
 
     private final ViewHolder mViewHolder = new ViewHolder();
 
     // Imagem selecionada
     private ImageView mImageSelected;
+    private boolean mAutoIncrement;
+    private LongEventType mLongEventType;
+    private Handler mRepeatUpdateHandler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,15 +61,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             content.addView(image);
         }
 
-        this.mViewHolder.mLinearControlPanel    = (LinearLayout) this.findViewById(R.id.linear_control_panel);
-        this.mViewHolder.mLinearSharePanel      = (LinearLayout) this.findViewById(R.id.linear_share_panel);
+        this.mViewHolder.mLinearControlPanel = (LinearLayout) this.findViewById(R.id.linear_control_panel);
+        this.mViewHolder.mLinearSharePanel = (LinearLayout) this.findViewById(R.id.linear_share_panel);
 
-        this.mViewHolder.mButtonZoonIn          = (ImageView) this.findViewById(R.id.image_zoom_in);
-        this.mViewHolder.mButtonZoonOut         = (ImageView) this.findViewById(R.id.image_zoom_out);
-        this.mViewHolder.mButtonRotateLeft      = (ImageView) this.findViewById(R.id.image_rotate_left);
-        this.mViewHolder.mButtonRotateRight     = (ImageView) this.findViewById(R.id.image_rotate_right);
-        this.mViewHolder.mButtonFinish          = (ImageView) this.findViewById(R.id.image_finish);
-        this.mViewHolder.mButtonRemove          = (ImageView) this.findViewById(R.id.image_remove);
+        this.mViewHolder.mButtonZoonIn = (ImageView) this.findViewById(R.id.image_zoom_in);
+        this.mViewHolder.mButtonZoonOut = (ImageView) this.findViewById(R.id.image_zoom_out);
+        this.mViewHolder.mButtonRotateLeft = (ImageView) this.findViewById(R.id.image_rotate_left);
+        this.mViewHolder.mButtonRotateRight = (ImageView) this.findViewById(R.id.image_rotate_right);
+        this.mViewHolder.mButtonFinish = (ImageView) this.findViewById(R.id.image_finish);
+        this.mViewHolder.mButtonRemove = (ImageView) this.findViewById(R.id.image_remove);
 
         this.setListener();
 
@@ -77,12 +84,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         this.findViewById(R.id.image_rotate_right).setOnClickListener(this);
         this.findViewById(R.id.image_finish).setOnClickListener(this);
         this.findViewById(R.id.image_remove).setOnClickListener(this);
+
+
+        this.findViewById(R.id.image_zoom_in).setOnLongClickListener(this);
+        this.findViewById(R.id.image_zoom_out).setOnLongClickListener(this);
+        this.findViewById(R.id.image_rotate_left).setOnLongClickListener(this);
+        this.findViewById(R.id.image_rotate_right).setOnLongClickListener(this);
+
+        this.findViewById(R.id.image_zoom_in).setOnTouchListener(this);
+        this.findViewById(R.id.image_zoom_out).setOnTouchListener(this);
+        this.findViewById(R.id.image_rotate_left).setOnTouchListener(this);
+        this.findViewById(R.id.image_rotate_right).setOnTouchListener(this);
+
+
     }
 
     @Override
     public void onClick(View view) {
 
-        switch (view.getId()){
+        switch (view.getId()) {
 
             case R.id.image_zoom_in:
                 ImageUtil.handleZoonIn(this.mImageSelected);
@@ -94,8 +114,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 ImageUtil.handleRotateLeft(this.mImageSelected);
                 break;
             case R.id.image_rotate_right:
-                 ImageUtil.handleRotateRight(this.mImageSelected);
-                 break;
+                ImageUtil.handleRotateRight(this.mImageSelected);
+                break;
             case R.id.image_finish:
                 toogleControlPanel(false);
                 break;
@@ -125,6 +145,34 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 toogleControlPanel(true);
 
+                image.setOnTouchListener(new OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View view, MotionEvent motionEvent) {
+
+                        float x, y;
+                        switch (motionEvent.getAction()) {
+
+                            case MotionEvent.ACTION_DOWN:
+                                mImageSelected = image;
+                                toogleControlPanel(true);
+                                break;
+                            case MotionEvent.ACTION_MOVE:
+                                int coords[] = {0, 0};
+                                relativeLayoutPhoto.getLocationOnScreen(coords);
+
+                                x = (motionEvent.getRawX() - (image.getWidth() / 2));
+                                y = motionEvent.getRawY() - ((coords[1] + 100) + (image.getHeight() / 2));
+                                image.setX(x);
+                                image.setY(y);
+                                break;
+                            case MotionEvent.ACTION_UP:
+                                break;
+                        }
+                        return true;
+                    }
+                });
+
+
             }
         };
 
@@ -138,7 +186,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             this.mViewHolder.mLinearControlPanel.setVisibility(View.VISIBLE);
             this.mViewHolder.mLinearSharePanel.setVisibility(View.GONE);
 
-        } else{
+        } else {
 
             this.mViewHolder.mLinearControlPanel.setVisibility(View.GONE);
             this.mViewHolder.mLinearSharePanel.setVisibility(View.VISIBLE);
@@ -146,7 +194,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    @Override
+    public boolean onLongClick(View view) {
 
+        if (view.getId() == R.id.image_zoom_in)
+            this.mLongEventType = LongEventType.ZoomIn;
+
+        if (view.getId() == R.id.image_zoom_out)
+            this.mLongEventType = LongEventType.ZoomOut;
+
+        if (view.getId() == R.id.image_rotate_left)
+            this.mLongEventType = LongEventType.RotateLeft;
+
+        if (view.getId() == R.id.image_rotate_right)
+            this.mLongEventType = LongEventType.RotateRight;
+
+        mAutoIncrement = true;
+
+        new RptUpdater().run();
+
+        return false;
+    }
+
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+
+        int id = view.getId();
+
+        if (id == R.id.image_zoom_in || id == R.id.image_zoom_out || id == R.id.image_rotate_right || id == R.id.image_rotate_left) {
+            if (motionEvent.getAction() == MotionEvent.ACTION_UP && mAutoIncrement) {
+
+                mAutoIncrement = false;
+                this.mLongEventType = null;
+            }
+        }
+
+        return false;
+    }
 
 
     private static class ViewHolder {
@@ -165,5 +249,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
+    // Thread
+    private class RptUpdater implements Runnable {
 
+
+        @Override
+        public void run() {
+
+            if (mAutoIncrement)
+                mRepeatUpdateHandler.postDelayed(new RptUpdater(), 50);
+
+            if (mLongEventType != null) {
+
+                switch (mLongEventType) {
+                    case ZoomIn:
+                        ImageUtil.handleZoonIn(mImageSelected);
+                        break;
+                    case ZoomOut:
+                        ImageUtil.handleZoonOut(mImageSelected);
+                        break;
+                    case RotateLeft:
+                        ImageUtil.handleRotateLeft(mImageSelected);
+                        break;
+                    case RotateRight:
+                        ImageUtil.handleRotateRight(mImageSelected);
+                        break;
+                }
+            }
+        }
+    }
 }
